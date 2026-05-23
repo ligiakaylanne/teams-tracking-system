@@ -1,0 +1,76 @@
+<div class="header">
+  <mat-icon>{{ titleIcon() }}</mat-icon>
+  <h2 mat-dialog-title>{{ title() }}</h2>
+</div>
+
+<mat-dialog-content class="form-container">
+  <!-- Banner de Erros Gerais (Zod) -->
+  <div *ngIf="zodErrors().length > 0" class="zod-error-banner">
+    <ul>
+      <li *ngFor="let error of zodErrors()">{{ error }}</li>
+    </ul>
+  </div>
+
+  <!-- Formulário de Agente (Criar/Editar) -->
+  <form *ngIf="!isCheckInMode()" [formGroup]="agentForm">
+    <mat-form-field appearance="outline">
+      <mat-label>Nome do Agente</mat-label>
+      <input matInput formControlName="name" placeholder="Ex: João Silva">
+      <mat-error *ngIf="fieldError('name')">{{ fieldError('name') }}</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>ID de Registro</mat-label>
+      <input matInput formControlName="registerId" placeholder="Ex: AG-123">
+      <mat-error *ngIf="fieldError('registerId')">{{ fieldError('registerId') }}</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Status</mat-label>
+      <mat-select formControlName="status">
+        <mat-option value="ATIVO">Ativo</mat-option>
+        <mat-option value="INATIVO">Inativo</mat-option>
+      </mat-select>
+      <mat-error *ngIf="fieldError('status')">{{ fieldError('status') }}</mat-error>
+    </mat-form-field>
+  </form>
+
+  <!-- Formulário de Check-in -->
+  <form *ngIf="isCheckInMode()" [formGroup]="checkInForm">
+    <div class="form-row">
+      <mat-form-field appearance="outline">
+        <mat-label>Latitude</mat-label>
+        <input matInput type="number" formControlName="latitude" placeholder="-23.5505">
+        <mat-error *ngIf="checkInFieldError('latitude')">{{ checkInFieldError('latitude') }}</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Longitude</mat-label>
+        <input matInput type="number" formControlName="longitude" placeholder="-46.6333">
+        <mat-error *ngIf="checkInFieldError('longitude')">{{ checkInFieldError('longitude') }}</mat-error>
+      </mat-form-field>
+    </div>
+    <p class="helper-text">Insira as coordenadas decimais capturadas pelo dispositivo.</p>
+  </form>
+</mat-dialog-content>
+
+<mat-divider></mat-divider>
+
+<mat-dialog-actions align="end" class="actions">
+  <button mat-button (click)="onCancel()" [disabled]="saving()">
+    Cancelar
+  </button>
+
+  <button
+    mat-raised-button
+    color="primary"
+    (click)="onSubmit()"
+    [disabled]="saving()"
+    class="submit-btn"
+  >
+    <mat-spinner diameter="20" *ngIf="saving()"></mat-spinner>
+    <span *ngIf="!saving()">
+      {{ submitLabel() }}
+    </span>
+  </button>
+</mat-dialog-actions>

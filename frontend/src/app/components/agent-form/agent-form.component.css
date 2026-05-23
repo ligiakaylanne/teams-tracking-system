@@ -1,0 +1,79 @@
+:host {
+  display: block;
+  min-width: 450px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  color: #333;
+}
+
+.header mat-icon {
+  color: #3f51b5;
+  font-size: 24px;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+.form-container {
+  padding: 8px 24px 20px 24px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.zod-error-banner {
+  background-color: #fff1f0;
+  border: 1px solid #ffa39e;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+}
+
+.zod-error-banner ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #cf1322;
+  font-size: 0.8rem;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  padding-top: 10px;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.form-row mat-form-field {
+  flex: 1;
+}
+
+.helper-text {
+  font-size: 0.75rem;
+  color: #666;
+  margin: -8px 0 16px 4px;
+}
+
+.actions {
+  padding: 16px 24px !important;
+  gap: 12px;
+}
+
+.submit-btn {
+  min-width: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
