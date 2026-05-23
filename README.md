@@ -1,10 +1,10 @@
-# 🗺️ Sistema de Rastreamento de Equipes Externas
+#  Sistema de Rastreamento de Equipes Externas
 
 Sistema fullstack para monitoramento operacional de agentes de campo em tempo real, com rastreamento GPS, sincronização automática via API externa e painel de monitoramento.
 
 ---
 
-## 🏗️ Arquitetura
+##  Arquitetura
 
 ```
 sistema-de-rastreamento-de-equipes/
@@ -35,7 +35,7 @@ API GPS Externa
 
 ---
 
-## 🚀 Como executar
+##  Como executar
 
 ### Com Docker (recomendado)
 
@@ -158,7 +158,7 @@ Unifica criar, editar e check-in em um único componente `AgentFormComponent`, p
 
 ---
 
-## 🗄️ Modelo de dados
+##  Modelo de dados
 
 ```
 agents
