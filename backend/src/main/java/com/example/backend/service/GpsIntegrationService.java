@@ -2,6 +2,7 @@ package com.example.backend.service;
 
 import com.example.backend.dto.ApiResponseDto;
 import com.example.backend.dto.GpsDataDto;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -17,7 +18,7 @@ public class GpsIntegrationService {
 
     private final WebClient webClient;
     private static final String API_KEY = "m4a_9d7f2c1ab84e6f03b2c91d5aa77e4c6f8b1d2e3f4a5b6c7";
-    private static final int MAX_PAGES = 20; // proteção contra loop infinito
+    private static final int MAX_PAGES = 20;
 
     public GpsIntegrationService(WebClient.Builder webClientBuilder) {
         this.webClient = webClientBuilder
@@ -25,14 +26,14 @@ public class GpsIntegrationService {
                 .build();
     }
 
-    private Mono<ApiResponseDto> fetchPage(String token, Integer page) {
+
+    @CircuitBreaker(name = "gpsApi", fallbackMethod = "fetchPageFallback")
+    public Mono<ApiResponseDto> fetchPage(String token, Integer page) {
         return this.webClient.get()
                 .uri(uriBuilder -> {
                     var builder = uriBuilder.path("/v1/locations")
                             .queryParam("token", token);
-                    if (page != null) {
-                        builder.queryParam("page", page);
-                    }
+                    if (page != null) builder.queryParam("page", page);
                     return builder.build();
                 })
                 .header("X-API-Key", API_KEY)
@@ -47,21 +48,28 @@ public class GpsIntegrationService {
                                     }
                                     return false;
                                 })
-                )
-                .onErrorResume(ex -> {
-                    System.err.println("[GPS] Erro ao buscar página " + page + ": " + ex.getMessage());
-                    return Mono.empty();
-                });
+                );
     }
 
+    /**
+     * Fallback acionado quando o Circuit Breaker está OPEN.
+     * Retorna Mono.empty() para não propagar falha ao scheduler.
+     */
+    public Mono<ApiResponseDto> fetchPageFallback(String token, Integer page, Throwable ex) {
+        System.err.println("[CircuitBreaker] Circuito ABERTO para gpsApi. Fallback ativado. Motivo: " + ex.getMessage());
+        return Mono.empty();
+    }
 
+    /**
+     * Busca TODAS as páginas via paginação (hasMore + nextSyncToken).
+     */
     public Flux<GpsDataDto> fetchAllPages(String syncToken) {
         return fetchPagesRecursive(syncToken, 1, MAX_PAGES);
     }
 
     private Flux<GpsDataDto> fetchPagesRecursive(String token, int currentPage, int remaining) {
         if (remaining <= 0) {
-            System.out.println("[GPS] Limite de " + MAX_PAGES + " páginas atingido. Interrompendo paginação.");
+            System.out.println("[GPS] Limite de " + MAX_PAGES + " páginas atingido.");
             return Flux.empty();
         }
 
@@ -72,7 +80,7 @@ public class GpsIntegrationService {
                     }
 
                     List<GpsDataDto> currentData = response.getData();
-                    System.out.println("[GPS] Página " + currentPage + " recebida com " + currentData.size() + " registros.");
+                    System.out.println("[GPS] Página " + currentPage + " — " + currentData.size() + " registros.");
 
                     Flux<GpsDataDto> currentFlux = Flux.fromIterable(currentData);
 
@@ -86,9 +94,12 @@ public class GpsIntegrationService {
                     }
 
                     return currentFlux;
+                })
+                .onErrorResume(ex -> {
+                    System.err.println("[GPS] Erro na página " + currentPage + ": " + ex.getMessage());
+                    return Flux.empty();
                 });
     }
-
 
     public Mono<ApiResponseDto> fetchGpsData(String syncToken) {
         return fetchPage(syncToken, null);
