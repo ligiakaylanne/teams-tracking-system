@@ -32,17 +32,13 @@ public class TrackingSchedulers {
 
         AtomicInteger totalProcessed = new AtomicInteger(0);
         AtomicInteger totalErrors = new AtomicInteger(0);
-        AtomicReference<String> lastToken = new AtomicReference<>(currentToken);
+        AtomicReference<String> nextToken = new AtomicReference<>(currentToken);
 
         gpsService.fetchAllPages(currentToken)
                 .doOnNext(dto -> {
                     try {
                         agentService.processGpsLocation(dto);
                         totalProcessed.incrementAndGet();
-                        // atualiza o token a cada registro recebido
-                        if (dto != null) {
-                            lastToken.set(currentToken);
-                        }
                     } catch (Exception e) {
                         totalErrors.incrementAndGet();
                         System.err.println("[Scheduler 1] Erro ao processar agente "
@@ -56,15 +52,13 @@ public class TrackingSchedulers {
                             "GPS_SYNC",
                             totalErrors.get() == 0 ? "SUCESSO" : "SUCESSO_PARCIAL",
                             totalProcessed.get(),
-                            lastToken.get(),
-                            totalErrors.get() > 0 ? totalErrors.get() + " erros ao processar registros" : null
-                    ));
+                            nextToken.get(),
+                            totalErrors.get() > 0 ? totalErrors.get() + " erros ao processar registros" : null));
                 })
                 .doOnError(error -> {
                     System.err.println("[Scheduler 1] Falha crítica: " + error.getMessage());
                     syncLogRepository.save(new SyncLog(
-                            "GPS_SYNC", "ERRO", 0, currentToken, error.getMessage()
-                    ));
+                            "GPS_SYNC", "ERRO", 0, currentToken, error.getMessage()));
                 })
                 .subscribe();
     }
