@@ -13,16 +13,16 @@ import { AgentService } from './services/agent.service';
       <!-- Navbar -->
       <nav class="bg-gray-800 border-b border-gray-700 px-6 py-3">
         <div class="max-w-7xl mx-auto flex items-center justify-between">
-          <span class="text-lg font-bold text-emerald-400">📍 Rastreamento de Equipes</span>
+          <span class="text-lg font-bold text-emerald-400"> Rastreamento de Equipes</span>
           <div class="flex gap-2">
             <a routerLink="/" routerLinkActive="!bg-emerald-600"
                [routerLinkActiveOptions]="{exact: true}"
                class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-700 hover:bg-gray-600 transition-colors">
-              🏠 Painel
+               Painel
             </a>
             <a routerLink="/mapa" routerLinkActive="!bg-emerald-600"
                class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-700 hover:bg-gray-600 transition-colors">
-              🗺️ Mapa
+               Mapa
             </a>
           </div>
         </div>
