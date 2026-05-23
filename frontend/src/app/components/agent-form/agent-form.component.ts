@@ -69,7 +69,6 @@ export class AgentFormComponent implements OnInit {
     };
     const l = labels[this.data.mode];
     this.title.set(l.title);
-    this.titleIcon.set(l.icon);
     this.submitLabel.set(l.submit);
   }
 

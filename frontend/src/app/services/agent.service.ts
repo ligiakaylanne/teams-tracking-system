@@ -47,15 +47,11 @@ export class AgentService {
   }
 
   public createAgent(data: AgentFormData): Observable<Agent> {
-    return this.http.post<Agent>(`${this.apiUrl}/agents`, data).pipe(
-      tap(() => this.loadAgents().subscribe())
-    );
+    return this.http.post<Agent>(`${this.apiUrl}/agents`, data);
   }
 
   public updateAgent(id: number, data: AgentFormData): Observable<Agent> {
-    return this.http.put<Agent>(`${this.apiUrl}/agents/${id}`, data).pipe(
-      tap(() => this.loadAgents().subscribe())
-    );
+    return this.http.put<Agent>(`${this.apiUrl}/agents/${id}`, data);
   }
 
   public deleteAgent(id: number): Observable<void> {
@@ -65,10 +61,7 @@ export class AgentService {
   }
 
   public manualCheckIn(registerId: string, payload: CheckInFormData): Observable<RouteHistory> {
-    return this.http.post<RouteHistory>(
-      `${this.apiUrl}/agents/${registerId}/check-in`,
-      payload
-    );
+    return this.http.post<RouteHistory>(`${this.apiUrl}/agents/${registerId}/check-in`, payload);
   }
 
   public getAgentRoute(registerId: string): Observable<RouteHistory[]> {

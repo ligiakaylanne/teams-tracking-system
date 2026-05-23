@@ -33,10 +33,11 @@ export class AgentListComponent implements OnInit {
 
   ngOnInit(): void {
     this.fetchData();
+    // Atualização periódica de 10 segundos
     setInterval(() => this.fetchData(), 10000);
   }
 
-  private fetchData(): void {
+  public fetchData(): void {
     this.agentService.loadAgents().subscribe();
   }
 
@@ -49,7 +50,10 @@ export class AgentListComponent implements OnInit {
     ref.afterClosed().subscribe(result => {
       if (!result) return;
       this.agentService.createAgent(result.payload).subscribe({
-        next: () => this.snackBar.open('Agente criado com sucesso!', 'OK', { duration: 3000 }),
+        next: () => {
+          this.snackBar.open('Agente criado com sucesso!', 'OK', { duration: 3000 });
+          this.fetchData();
+        },
         error: () => this.snackBar.open('Erro ao criar agente.', 'OK', { duration: 3000 }),
       });
     });
@@ -64,7 +68,10 @@ export class AgentListComponent implements OnInit {
     ref.afterClosed().subscribe(result => {
       if (!result || !agent.id) return;
       this.agentService.updateAgent(agent.id, result.payload).subscribe({
-        next: () => this.snackBar.open('Agente atualizado!', 'OK', { duration: 3000 }),
+        next: () => {
+          this.snackBar.open('Agente atualizado!', 'OK', { duration: 3000 });
+          this.fetchData();
+        },
         error: () => this.snackBar.open('Erro ao atualizar agente.', 'OK', { duration: 3000 }),
       });
     });
@@ -79,7 +86,10 @@ export class AgentListComponent implements OnInit {
     ref.afterClosed().subscribe(result => {
       if (!result) return;
       this.agentService.manualCheckIn(agent.registerId, result.payload).subscribe({
-        next: () => this.snackBar.open('Check-in registrado!', 'OK', { duration: 3000 }),
+        next: () => {
+          this.snackBar.open('Check-in registrado!', 'OK', { duration: 3000 });
+          this.fetchData();
+        },
         error: () => this.snackBar.open('Erro ao registrar check-in.', 'OK', { duration: 3000 }),
       });
     });
@@ -90,7 +100,10 @@ export class AgentListComponent implements OnInit {
     if (!confirm(`Remover agente "${agent.name}"?`)) return;
 
     this.agentService.deleteAgent(agent.id).subscribe({
-      next: () => this.snackBar.open('Agente removido.', 'OK', { duration: 3000 }),
+      next: () => {
+        this.snackBar.open('Agente removido.', 'OK', { duration: 3000 });
+        this.fetchData();
+      },
       error: () => this.snackBar.open('Erro ao remover agente.', 'OK', { duration: 3000 }),
     });
   }
