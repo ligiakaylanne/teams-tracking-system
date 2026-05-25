@@ -1,10 +1,10 @@
-#  Sistema de Rastreamento de Equipes Externas
+# 🗺️ Sistema de Rastreamento de Equipes Externas
 
-Sistema fullstack para monitoramento operacional de agentes de campo em tempo real, com rastreamento GPS, sincronização automática via API externa e painel de monitoramento.
+Sistema fullstack para monitoramento operacional de agentes de campo em tempo real, com rastreamento GPS, sincronização automática via API externa, mapa interativo com geofencing e painel de monitoramento.
 
 ---
 
-##  Arquitetura
+## Arquitetura
 
 ```
 sistema-de-rastreamento-de-equipes/
@@ -21,7 +21,7 @@ sistema-de-rastreamento-de-equipes/
 API GPS Externa
       │
       ▼
- Spring Boot (Schedulers)
+ Spring Boot (Schedulers + Circuit Breaker)
       │  WebClient reativo + retry + paginação
       ▼
    MySQL DB ──── Spring Data JPA
@@ -30,7 +30,7 @@ API GPS Externa
  REST API (/api/agents, /api/sync-logs)
       │
       ▼
- Angular 19 (Signals + Material + Zod)
+ Angular 19 (Signals + Material + Zod + Leaflet)
 ```
 
 ---
@@ -50,12 +50,13 @@ docker-compose up --build
 
 Serviços disponíveis após subir:
 
-| Serviço   | URL                         |
-|-----------|-----------------------------|
-| Frontend  | http://localhost:4200        |
-| Backend   | http://localhost:8080        |
+| Serviço   | URL                                   |
+|-----------|---------------------------------------|
+| Frontend  | http://localhost:4200                 |
+| Backend   | http://localhost:8080                 |
 | Swagger   | http://localhost:8080/swagger-ui.html |
-| MySQL     | localhost:3307               |
+| Actuator  | http://localhost:8080/actuator/health |
+| MySQL     | localhost:3307                        |
 
 ### Sem Docker (desenvolvimento local)
 
@@ -76,7 +77,7 @@ npm start
 
 ---
 
-## 📋 Funcionalidades
+##  Funcionalidades
 
 ### Gestão de Agentes
 - CRUD completo via interface (criar, editar, remover agentes)
@@ -96,13 +97,21 @@ npm start
 - **Validação de coordenadas** — latitude entre -90/90, longitude entre -180/180
 - **Idempotência** — duplicatas identificadas por `agentId + lat + lng + timestamp` não são persistidas
 
+### Mapa Interativo (Leaflet)
+- Pins coloridos por status: verde (ATIVO) e amarelo (INATIVO)
+- Visualização da rota do agente ao clicar no pin ou no botão
+- Linha tracejada com marcadores de início e fim de rota
+- Atualização automática das posições a cada 15 segundos
+- **Geofencing visual** — círculos de 500m por agente com toggle ON/OFF
+
 ### Painel de Monitoramento
 - Cards com dados reais: total de agentes, ativos, inativos e horário da última atualização
 - Tabela de logs dos schedulers com status, token utilizado e registros sincronizados
+- Navegação entre Painel e Mapa via navbar
 
 ---
 
-## ⚙️ Schedulers
+##  Schedulers
 
 | # | Nome | Intervalo | Responsabilidade |
 |---|------|-----------|-----------------|
@@ -113,7 +122,7 @@ npm start
 
 ---
 
-## 🔗 Integração com API Externa
+##  Integração com API Externa
 
 **Base URL:** `https://desafio-media.onrender.com`
 
@@ -126,10 +135,35 @@ npm start
 | Paginação obrigatória | Loop reativo com `Flux` percorrendo até 20 páginas |
 | GPS impreciso | Filtro Haversine descarta pontos > 500 km do último ponto |
 | Sincronização incremental | `syncToken` persistido no banco e reutilizado a cada ciclo |
+| Falhas consecutivas | Circuit Breaker abre após 50% de falhas em 10 chamadas |
 
 ---
 
-## 🧱 Decisões Técnicas
+##  Circuit Breaker — Resilience4j
+
+O serviço de integração GPS é protegido por um Circuit Breaker com três estados:
+
+```
+CLOSED (normal) ──► falhas > 50% em 10 calls ──► OPEN (bloqueado por 30s)
+                                                        │
+                                                        ▼
+                                                  HALF-OPEN (testa 3 calls)
+                                                        │
+                                          sucesso ◄─────┴────► falha → OPEN
+```
+
+- **CLOSED** — chamadas fluem normalmente
+- **OPEN** — fallback ativado, retorna `Mono.empty()` sem propagar erro ao scheduler
+- **HALF-OPEN** — testa 3 chamadas antes de decidir reabrir ou fechar o circuito
+
+Estado em tempo real disponível em:
+```
+http://localhost:8080/actuator/health
+```
+
+---
+
+##  Decisões Técnicas
 
 ### Backend
 
@@ -137,7 +171,10 @@ npm start
 O `WebClient` do Spring WebFlux permite chamadas não-bloqueantes. Com a API externa instável (429/503), o `retryWhen` com `Retry.backoff` encadeia retentativas sem bloquear threads — o que seria inviável com `RestTemplate`.
 
 **Paginação com Flux recursivo**
-A API retorna `hasMore: true` enquanto houver mais páginas. Implementamos `fetchAllPages()` que encadeia chamadas reativas via `Flux.concatWith()`, garantindo que todos os registros do ciclo sejam processados antes de registrar o SyncLog.
+A API retorna `hasMore: true` enquanto houver mais páginas. Implementamos `fetchAllPages()` que encadeia chamadas reativas via `Flux.concatWith()`, garantindo que todos os registros do ciclo sejam processados antes de registrar o SyncLog. Um limite de `MAX_PAGES = 20` protege contra loops infinitos.
+
+**Circuit Breaker com Resilience4j**
+A anotação `@CircuitBreaker(name = "gpsApi", fallbackMethod = "fetchPageFallback")` protege o método `fetchPage()`. Quando o circuito está aberto, o fallback retorna `Mono.empty()` silenciosamente, evitando que falhas da API externa travem os schedulers.
 
 **Idempotência no RouteHistory**
 Antes de persistir cada ponto GPS, verificamos a existência do registro por `agentRegisterId + latitude + longitude + timestamp`. Isso evita duplicatas em caso de reprocessamento do mesmo `syncToken`.
@@ -155,6 +192,9 @@ O `AgentSchema` e o `CheckInSchema` definem as regras de validação (tipos, ran
 
 **MatDialog para CRUD**
 Unifica criar, editar e check-in em um único componente `AgentFormComponent`, passando o `mode` via `MAT_DIALOG_DATA`. Evita triplicar lógica e mantém o código coeso.
+
+**Leaflet com geofencing visual**
+O mapa usa `import * as L from 'leaflet'` (via npm) e inicializa no `ngAfterViewInit` para garantir que o DOM existe. Cada agente tem um `L.circle` de 500m representando sua zona de operação, com toggle ON/OFF via signal. A rota é desenhada com `L.polyline` + marcadores de início e fim ao clicar no agente.
 
 ---
 
@@ -190,7 +230,7 @@ sync_logs
 
 ---
 
-## 📦 Tecnologias
+##  Tecnologias
 
 ### Backend
 | Tecnologia | Versão | Uso |
@@ -200,26 +240,28 @@ sync_logs
 | Spring Data JPA | — | Persistência |
 | Spring WebFlux / WebClient | — | Integração reativa com API externa |
 | Spring Scheduler | — | Agendamento dos 4 schedulers |
+| Resilience4j | 2.2.0 | Circuit Breaker na integração GPS |
 | MySQL | 8.0 | Banco de dados |
 | Lombok | — | Redução de boilerplate |
 | Springdoc OpenAPI | 2.6.0 | Swagger UI |
-| Spring Actuator | — | Healthcheck para Docker |
+| Spring Actuator | — | Healthcheck para Docker e métricas |
 
 ### Frontend
 | Tecnologia | Versão | Uso |
 |---|---|---|
 | Angular | 19 | Framework principal |
-| Angular Signals | — | Estado reativo |
+| Angular Signals | — | Estado reativo e computed values |
 | Angular Material | 19 | Componentes UI (Dialog, Form Fields, Snackbar) |
 | Reactive Forms | — | Formulários |
 | Zod | 4.x | Validação de schemas |
 | RxJS | 7.x | Operadores reativos |
+| Leaflet | 1.9.4 | Mapa interativo com geofencing |
 | Tailwind CSS | 4.x | Estilização |
 | Nginx | 1.25 | Servidor web (produção via Docker) |
 
 ---
 
-## 📖 API Reference
+##  API Reference
 
 A documentação interativa completa está disponível via Swagger em:
 ```
@@ -237,3 +279,16 @@ Endpoints principais:
 | `GET` | `/api/agents/{registerId}/route` | Histórico de rota do agente |
 | `POST` | `/api/agents/{registerId}/check-in` | Registra check-in manual |
 | `GET` | `/api/sync-logs` | Lista logs de sincronização |
+| `GET` | `/actuator/health` | Status do sistema e circuit breaker |
+
+---
+
+##  Diferenciais implementados
+
+| Diferencial | Status |
+|---|---|
+| Dockerização completa | ✅ MySQL + Backend + Frontend + Nginx |
+| Swagger / OpenAPI | ✅ Disponível em /swagger-ui.html |
+| Mapa interativo com Leaflet | ✅ Pins coloridos, rotas e geofencing |
+| Geofencing visual | ✅ Círculos de 500m com toggle ON/OFF |
+| Circuit Breaker com Resilience4j | ✅ Proteção na integração GPS |
